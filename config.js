@@ -8,8 +8,7 @@
 
 const adConfig = {
     // Ad Slot 1: Top Content Ad
-    adSlot1: `
-    <script async="async" data-cfasync="false" src="https://pl28404746.effectivegatecpm.com/1d70c97e57d6af9b8b9600ef1dfb0161/invoke.js"></script>
+    adSlot1: `<script async="async" data-cfasync="false" src="https://pl28404746.effectivegatecpm.com/1d70c97e57d6af9b8b9600ef1dfb0161/invoke.js"></script>
 <div id="container-1d70c97e57d6af9b8b9600ef1dfb0161"></div>
     `,
 
@@ -27,11 +26,8 @@ const adConfig = {
     `,
 
     // Ad Slot 3: Sidebar Top
-    adSlot3: `
-        <!-- Example Adcash Ad Code -->
-  <script async="async" data-cfasync="false" src="https://pl28404746.effectivegatecpm.com/1d70c97e57d6af9b8b9600ef1dfb0161/invoke.js"></script>
-<div id="container-1d70c97e57d6af9b8b9600ef1dfb0161"></div>
-    `,
+     adSlot3: `<script async="async" data-cfasync="false" src="https://pl28404746.effectivegatecpm.com/1d70c97e57d6af9b8b9600ef1dfb0161/invoke.js"></script>
+<div id="container-1d70c97e57d6af9b8b9600ef1dfb0161"></div>`,
 
     // Ad Slot 4: Sidebar Middle
     adSlot4: `
