@@ -9,15 +9,8 @@
 const adConfig = {
     // Ad Slot 1: Top Content Ad
     adSlot1: `
-        <!-- Example Adsterra Ad Code -->
-        <div style="text-align: center; margin: 20px 0;">
-            <p>Adsterra Ad: Responsive Banner 728x90</p>
-            <div style="background: #f5f5f5; border: 1px solid #ddd; padding: 40px; margin: 0 auto; max-width: 728px;">
-                <!-- Replace this with your actual Adsterra ad code -->
-                <p>Your Adsterra Ad Code Here</p>
-                <p><strong>Size:</strong> 728x90 or Responsive</p>
-            </div>
-        </div>
+    <script async="async" data-cfasync="false" src="https://pl28404746.effectivegatecpm.com/1d70c97e57d6af9b8b9600ef1dfb0161/invoke.js"></script>
+<div id="container-1d70c97e57d6af9b8b9600ef1dfb0161"></div>
     `,
 
     // Ad Slot 2: Middle Content Ad
