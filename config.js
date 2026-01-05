@@ -29,14 +29,8 @@ const adConfig = {
     // Ad Slot 3: Sidebar Top
     adSlot3: `
         <!-- Example Adcash Ad Code -->
-        <div style="text-align: center;">
-            <p>Adcash: Sidebar Banner</p>
-            <div style="background: #f0f8ff; border: 1px solid #b3e0ff; padding: 25px; margin: 0 auto; max-width: 300px;">
-                <!-- Replace this with your actual Adcash ad code -->
-                <p>Your Adcash Ad Code Here</p>
-                <p><strong>Size:</strong> 300x250</p>
-            </div>
-        </div>
+  <script async="async" data-cfasync="false" src="https://pl28404746.effectivegatecpm.com/1d70c97e57d6af9b8b9600ef1dfb0161/invoke.js"></script>
+<div id="container-1d70c97e57d6af9b8b9600ef1dfb0161"></div>
     `,
 
     // Ad Slot 4: Sidebar Middle
