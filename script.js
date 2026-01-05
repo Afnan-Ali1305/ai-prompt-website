@@ -115,7 +115,7 @@ function initializeSite() {
     loadAITools();
     
     // Load ads
-    loadAds();
+    // loadAds();
     
     // Generate calendar
     generateCalendar(currentMonth, currentYear);

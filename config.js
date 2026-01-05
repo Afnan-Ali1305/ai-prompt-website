@@ -6,55 +6,7 @@
 // To update ads, simply replace the HTML code below with your ad code from each network
 // You can add more ad slots by following the same pattern
 
-const adConfig = {
-    // Ad Slot 1: Top Content Ad
-    adSlot1: `<script async="async" data-cfasync="false" src="https://pl28404746.effectivegatecpm.com/1d70c97e57d6af9b8b9600ef1dfb0161/invoke.js"></script>
-<div id="container-1d70c97e57d6af9b8b9600ef1dfb0161"></div>
-    `,
 
-    // Ad Slot 2: Middle Content Ad
-    adSlot2: `
-        <!-- Example PropellerAds Ad Code -->
-        <div style="text-align: center; margin: 20px 0;">
-            <p>PropellerAds: Native Ad</p>
-            <div style="background: #f9f9f9; border: 1px dashed #3498db; padding: 30px; margin: 0 auto; max-width: 300px;">
-                <!-- Replace this with your actual PropellerAds ad code -->
-                <p>Your PropellerAds Ad Code Here</p>
-                <p><strong>Format:</strong> Native Banner</p>
-            </div>
-        </div>
-    `,
-
-    // Ad Slot 3: Sidebar Top
-     adSlot3: `<script async="async" data-cfasync="false" src="https://pl28404746.effectivegatecpm.com/1d70c97e57d6af9b8b9600ef1dfb0161/invoke.js"></script>
-<div id="container-1d70c97e57d6af9b8b9600ef1dfb0161"></div>`,
-
-    // Ad Slot 4: Sidebar Middle
-    adSlot4: `
-        <!-- Example Bidvertiser Ad Code -->
-        <div style="text-align: center;">
-            <p>Bidvertiser: Text Ad</p>
-            <div style="background: #fffaf0; border: 1px solid #ffd699; padding: 20px; margin: 0 auto; max-width: 300px;">
-                <!-- Replace this with your actual Bidvertiser ad code -->
-                <p>Your Bidvertiser Ad Code Here</p>
-                <p><strong>Format:</strong> Text & Display</p>
-            </div>
-        </div>
-    `,
-
-    // Ad Slot 5: Sidebar Bottom
-    adSlot5: `
-        <!-- Example Revcontent Ad Code -->
-        <div style="text-align: center;">
-            <p>Revcontent: Widget</p>
-            <div style="background: #f5f5f5; border: 1px solid #e0e0e0; padding: 30px; margin: 0 auto; max-width: 300px;">
-                <!-- Replace this with your actual Revcontent ad code -->
-                <p>Your Revcontent Ad Code Here</p>
-                <p><strong>Format:</strong> Content Recommendation</p>
-            </div>
-        </div>
-    `
-};
 
 // =============================================
 // PROMPT CONFIGURATION
