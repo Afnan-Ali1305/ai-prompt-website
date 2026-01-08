@@ -1,16 +1,20 @@
-// script.js
+// script.js - Updated with Proper Search and Infinite Scroll
 
 // DOM Elements
-let currentDateElement, dailyPromptElement, promptToolElement, promptCategoryElement, promptTipsElement;
-let recentPromptsContainer, trendingPromptsList, aiToolsContainer, calendarDaysContainer;
-let copyPromptButton, regenerateButton, copyToast, submitPromptLink, contactLink;
+let allPromptsContainer, categoriesContainer, promptCountElement;
+let promptSearchInput, searchButton;
+let copyToast, submitPromptLink, contactLink;
 let submitPromptModal, closeModalButton, promptSubmissionForm;
-let prevMonthButton, nextMonthButton, currentMonthYearElement;
 
-// Current date
-let currentDate = new Date();
-let currentMonth = currentDate.getMonth();
-let currentYear = currentDate.getFullYear();
+// Current state
+let displayedPrompts = [];
+let filteredPrompts = [];
+let currentPage = 1;
+const promptsPerPage = 9;
+let isLoading = false;
+let hasMorePrompts = true;
+let currentSearchQuery = '';
+let currentCategory = 'All';
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
@@ -24,23 +28,15 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeSite();
     
     // Set current year in footer
-    document.getElementById('current-year').textContent = currentYear;
+    document.getElementById('current-year').textContent = new Date().getFullYear();
 });
 
 function initializeDOMElements() {
-    currentDateElement = document.getElementById('current-date');
-    dailyPromptElement = document.getElementById('daily-prompt');
-    promptToolElement = document.getElementById('prompt-tool');
-    promptCategoryElement = document.getElementById('prompt-category');
-    promptTipsElement = document.getElementById('prompt-tips');
-    
-    recentPromptsContainer = document.getElementById('recent-prompts-container');
-    trendingPromptsList = document.getElementById('trending-prompts');
-    aiToolsContainer = document.getElementById('ai-tools-container');
-    calendarDaysContainer = document.getElementById('calendar-days');
-    
-    copyPromptButton = document.getElementById('copy-prompt-btn');
-    regenerateButton = document.getElementById('regenerate-btn');
+    allPromptsContainer = document.getElementById('all-prompts-container');
+    categoriesContainer = document.getElementById('categories-container');
+    promptCountElement = document.getElementById('prompt-count');
+    promptSearchInput = document.getElementById('prompt-search');
+    searchButton = document.getElementById('search-button');
     copyToast = document.getElementById('copy-toast');
     
     submitPromptLink = document.getElementById('submit-prompt-link');
@@ -49,18 +45,32 @@ function initializeDOMElements() {
     submitPromptModal = document.getElementById('submit-prompt-modal');
     closeModalButton = document.querySelector('.close-modal');
     promptSubmissionForm = document.getElementById('prompt-submission-form');
-    
-    prevMonthButton = document.getElementById('prev-month');
-    nextMonthButton = document.getElementById('next-month');
-    currentMonthYearElement = document.getElementById('current-month-year');
 }
 
 function setupEventListeners() {
-    // Copy prompt button
-    copyPromptButton.addEventListener('click', copyPromptToClipboard);
+    // Search functionality
+    searchButton.addEventListener('click', performSearch);
+    promptSearchInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            performSearch();
+        }
+    });
     
-    // Regenerate button (gets a random prompt from the list)
-    regenerateButton.addEventListener('click', getRandomPrompt);
+    // Real-time search as user types (with debounce)
+    let searchTimeout;
+    promptSearchInput.addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            if (this.value.trim() === '') {
+                resetSearch();
+            } else {
+                performSearch();
+            }
+        }, 300); // 300ms debounce
+    });
+    
+    // Infinite scroll
+    window.addEventListener('scroll', handleScroll);
     
     // Modal controls
     submitPromptLink.addEventListener('click', function(e) {
@@ -86,299 +96,311 @@ function setupEventListeners() {
     
     // Prompt submission form
     promptSubmissionForm.addEventListener('submit', handlePromptSubmission);
-    
-    // Calendar navigation
-    prevMonthButton.addEventListener('click', showPreviousMonth);
-    nextMonthButton.addEventListener('click', showNextMonth);
 }
 
 function initializeSite() {
-    // Set current date
-    const formattedDate = currentDate.toLocaleDateString('en-US', { 
-        weekday: 'long', 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
-    });
-    currentDateElement.textContent = formattedDate;
+    // Load all prompts
+    loadAllPrompts();
     
-    // Load today's featured prompt (first in the array)
-    loadDailyPrompt();
+    // Load categories
+    loadCategories();
     
-    // Load recent prompts (excluding today's)
-    loadRecentPrompts();
-    
-    // Load trending prompts
-    loadTrendingPrompts();
-    
-    // Load AI tools
-    loadAITools();
-    
-    // Load ads
-    // loadAds();
-    
-    // Generate calendar
-    generateCalendar(currentMonth, currentYear);
+    // Load first page
+    loadPromptsPage(1);
 }
 
-function loadDailyPrompt() {
-    if (promptConfig.dailyPrompts.length > 0) {
-        const todayPrompt = promptConfig.dailyPrompts[0];
-        dailyPromptElement.textContent = todayPrompt.content;
-        promptToolElement.textContent = todayPrompt.tool;
-        promptCategoryElement.textContent = todayPrompt.category;
-        promptTipsElement.textContent = todayPrompt.tips;
-    }
+function loadAllPrompts() {
+    // Combine all prompts from config
+    const allPrompts = getAllPrompts();
+    
+    // Store all prompts
+    displayedPrompts = allPrompts;
+    filteredPrompts = [...allPrompts];
+    
+    // Update prompt count
+    updatePromptCount();
 }
 
-function loadRecentPrompts() {
+function loadCategories() {
     // Clear container
-    recentPromptsContainer.innerHTML = '';
+    categoriesContainer.innerHTML = '';
     
-    // Get recent prompts (skip the first one which is today's)
-    const recentPrompts = promptConfig.dailyPrompts.slice(1, siteSettings.maxRecentPrompts + 1);
+    // Get categories from config
+    const categories = promptConfig.categories;
     
-    // Create prompt cards
-    recentPrompts.forEach(prompt => {
-        const promptCard = document.createElement('div');
-        promptCard.className = 'recent-prompt-card';
+    // Create category buttons
+    categories.forEach(category => {
+        const categoryButton = document.createElement('a');
+        categoryButton.href = '#';
+        categoryButton.textContent = category;
+        categoryButton.classList.add('category-btn');
         
-        // Format date for display
-        const promptDate = new Date(prompt.date);
-        const formattedDate = promptDate.toLocaleDateString('en-US', { 
-            month: 'short', 
-            day: 'numeric' 
+        if (category === 'All') {
+            categoryButton.classList.add('active');
+        }
+        
+        categoryButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            // Update active state
+            document.querySelectorAll('.category-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            this.classList.add('active');
+            
+            // Filter prompts by category
+            currentCategory = category;
+            currentSearchQuery = '';
+            promptSearchInput.value = '';
+            
+            if (category === 'All') {
+                filteredPrompts = [...displayedPrompts];
+            } else {
+                filteredPrompts = displayedPrompts.filter(prompt => 
+                    prompt.category === category
+                );
+            }
+            
+            // Reset to first page
+            currentPage = 1;
+            hasMorePrompts = true;
+            allPromptsContainer.innerHTML = '';
+            loadPromptsPage(1);
+            updatePromptCount();
         });
         
-        promptCard.innerHTML = `
-            <h4>${prompt.title}</h4>
-            <div class="recent-prompt-meta">
-                <span><i class="fas fa-wrench"></i> ${prompt.tool}</span>
-                <span><i class="fas fa-calendar"></i> ${formattedDate}</span>
-            </div>
-            <div class="recent-prompt-content">
-                ${truncateText(prompt.content, 150)}
-            </div>
-            <button class="btn secondary-btn view-prompt-btn" data-prompt-id="${prompt.id}">
-                <i class="fas fa-eye"></i> View Full Prompt
+        categoriesContainer.appendChild(categoryButton);
+    });
+}
+
+function loadPromptsPage(page) {
+    if (isLoading || !hasMorePrompts) return;
+    
+    isLoading = true;
+    
+    // Show loading indicator (optional)
+    if (page === 1) {
+        allPromptsContainer.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i> Loading prompts...</div>';
+    }
+    
+    // Simulate network delay (remove in production)
+    setTimeout(() => {
+        // Calculate start and end indices
+        const startIndex = (page - 1) * promptsPerPage;
+        const endIndex = Math.min(startIndex + promptsPerPage, filteredPrompts.length);
+        
+        // Get prompts for current page
+        const pagePrompts = filteredPrompts.slice(startIndex, endIndex);
+        
+        // Clear loading indicator if first page
+        if (page === 1) {
+            allPromptsContainer.innerHTML = '';
+        }
+        
+        // Create prompt cards
+        pagePrompts.forEach(prompt => {
+            const promptCard = createPromptCard(prompt);
+            allPromptsContainer.appendChild(promptCard);
+        });
+        
+        // Check if there are more prompts to load
+        hasMorePrompts = endIndex < filteredPrompts.length;
+        
+        // Update page counter
+        currentPage = page;
+        
+        isLoading = false;
+        
+        // Update prompt count
+        updatePromptCount();
+    }, 300); // Simulated delay
+}
+
+function createPromptCard(prompt) {
+    const promptCard = document.createElement('div');
+    promptCard.className = 'prompt-card';
+    
+    // Generate unique ID for the prompt if not exists
+    const promptId = prompt.id || `prompt-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Format date for display
+    const promptDate = new Date(prompt.date);
+    const formattedDate = promptDate.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric',
+        year: 'numeric'
+    });
+    
+    promptCard.innerHTML = `
+        <div class="prompt-meta">
+            <span class="ai-tool"><i class="fas fa-wrench"></i> ${prompt.tool}</span>
+            <span class="prompt-category"><i class="fas fa-tag"></i> ${prompt.category}</span>
+            <span class="prompt-date"><i class="fas fa-calendar"></i> ${formattedDate}</span>
+        </div>
+        <h3 class="prompt-title">${prompt.title}</h3>
+        <div class="prompt-content">
+            <p>${truncateText(prompt.content, 200)}</p>
+        </div>
+        <div class="prompt-tags">
+            ${prompt.tags ? prompt.tags.slice(0, 3).map(tag => 
+                `<span class="tag">${tag}</span>`
+            ).join('') : ''}
+        </div>
+        <div class="prompt-actions">
+            <button class="btn copy-btn prompt-copy-btn" 
+                    data-prompt-id="${promptId}"
+                    data-prompt-content="${escapeHtml(prompt.content)}">
+                <i class="far fa-copy"></i> Copy Prompt
             </button>
-        `;
-        
-        recentPromptsContainer.appendChild(promptCard);
-    });
+        </div>
+    `;
     
-    // Add event listeners to view buttons
-    document.querySelectorAll('.view-prompt-btn').forEach(button => {
-        button.addEventListener('click', function() {
-            const promptId = parseInt(this.getAttribute('data-prompt-id'));
-            viewFullPrompt(promptId);
+    // Add click to expand functionality
+    const contentElement = promptCard.querySelector('.prompt-content');
+    const originalContent = prompt.content;
+    
+    if (prompt.content.length > 200) {
+        const expandButton = document.createElement('button');
+        expandButton.className = 'expand-btn';
+        expandButton.innerHTML = '<i class="fas fa-chevron-down"></i> Show More';
+        expandButton.addEventListener('click', function(e) {
+            e.stopPropagation();
+            if (contentElement.classList.contains('expanded')) {
+                contentElement.innerHTML = `<p>${truncateText(originalContent, 200)}</p>`;
+                this.innerHTML = '<i class="fas fa-chevron-down"></i> Show More';
+                contentElement.classList.remove('expanded');
+            } else {
+                contentElement.innerHTML = `<p>${originalContent}</p>`;
+                this.innerHTML = '<i class="fas fa-chevron-up"></i> Show Less';
+                contentElement.classList.add('expanded');
+            }
         });
-    });
-}
-
-function loadTrendingPrompts() {
-    // Clear container
-    trendingPromptsList.innerHTML = '';
-    
-    // Add trending prompts
-    promptConfig.trendingPrompts.forEach((prompt, index) => {
-        const listItem = document.createElement('li');
-        listItem.innerHTML = `
-            <a href="#">
-                <i class="fas fa-chevron-right"></i>
-                <span>${prompt}</span>
-            </a>
-        `;
-        trendingPromptsList.appendChild(listItem);
-    });
-}
-
-function loadAITools() {
-    // Clear container
-    aiToolsContainer.innerHTML = '';
-    
-    // Add AI tool cards
-    promptConfig.aiTools.forEach(tool => {
-        const toolCard = document.createElement('div');
-        toolCard.className = 'tool-card';
-        toolCard.innerHTML = `
-            <div class="tool-icon">
-                <i class="${tool.icon}" style="color: ${tool.color};"></i>
-            </div>
-            <h4>${tool.name}</h4>
-            <p>AI Assistant</p>
-        `;
-        aiToolsContainer.appendChild(toolCard);
-    });
-}
-
-function loadAds() {
-    // Load ads from config
-    document.getElementById('ad-slot-1').innerHTML = adConfig.adSlot1;
-    document.getElementById('ad-slot-2').innerHTML = adConfig.adSlot2;
-    document.getElementById('ad-slot-3').innerHTML = adConfig.adSlot3;
-    document.getElementById('ad-slot-4').innerHTML = adConfig.adSlot4;
-    document.getElementById('ad-slot-5').innerHTML = adConfig.adSlot5;
-}
-
-function generateCalendar(month, year) {
-    // Update month/year display
-    const monthNames = [
-        "January", "February", "March", "April", "May", "June",
-        "July", "August", "September", "October", "November", "December"
-    ];
-    currentMonthYearElement.textContent = `${monthNames[month]} ${year}`;
-    
-    // Clear calendar
-    calendarDaysContainer.innerHTML = '';
-    
-    // Get first day of the month
-    const firstDay = new Date(year, month, 1);
-    // Get last day of the month
-    const lastDay = new Date(year, month + 1, 0);
-    // Get day of the week for first day (0 = Sunday, 1 = Monday, etc.)
-    const firstDayIndex = firstDay.getDay();
-    // Get number of days in month
-    const daysInMonth = lastDay.getDate();
-    
-    // Get current day for highlighting
-    const today = new Date();
-    const isCurrentMonth = month === today.getMonth() && year === today.getFullYear();
-    
-    // Create empty cells for days before the first day of the month
-    for (let i = 0; i < firstDayIndex; i++) {
-        const emptyDay = document.createElement('div');
-        emptyDay.className = 'calendar-day empty';
-        calendarDaysContainer.appendChild(emptyDay);
+        promptCard.querySelector('.prompt-actions').before(expandButton);
     }
     
-    // Create cells for each day of the month
-    for (let day = 1; day <= daysInMonth; day++) {
-        const dayElement = document.createElement('div');
-        dayElement.className = 'calendar-day';
-        dayElement.textContent = day;
-        
-        // Check if it's today
-        if (isCurrentMonth && day === today.getDate()) {
-            dayElement.classList.add('today');
-        }
-        
-        // Check if there's a prompt for this day (simplified logic)
-        // In a real app, you'd check against your prompt dates
-        const hasPrompt = Math.random() > 0.7; // Random for demo
-        if (hasPrompt) {
-            dayElement.classList.add('has-prompt');
-            dayElement.title = 'Has prompt for this day';
-        }
-        
-        calendarDaysContainer.appendChild(dayElement);
-    }
+    // Add event listener to copy button
+    const copyButton = promptCard.querySelector('.prompt-copy-btn');
+    copyButton.addEventListener('click', handleCopyPrompt);
+    
+    return promptCard;
 }
 
-function showPreviousMonth() {
-    currentMonth--;
-    if (currentMonth < 0) {
-        currentMonth = 11;
-        currentYear--;
-    }
-    generateCalendar(currentMonth, currentYear);
+function handleCopyPrompt(e) {
+    const button = e.currentTarget;
+    const promptId = button.getAttribute('data-prompt-id');
+    const promptContent = button.getAttribute('data-prompt-content');
+    
+    // Direct copy without any redirect or delay
+    copyPromptToClipboard(promptContent, promptId);
 }
 
-function showNextMonth() {
-    currentMonth++;
-    if (currentMonth > 11) {
-        currentMonth = 0;
-        currentYear++;
-    }
-    generateCalendar(currentMonth, currentYear);
-}
-
-function copyPromptToClipboard() {
-    const promptText = dailyPromptElement.textContent;
+function copyPromptToClipboard(promptContent, promptId) {
+    // Unescape HTML entities
+    const textToCopy = unescapeHtml(promptContent);
     
     // Use the Clipboard API
-    navigator.clipboard.writeText(promptText).then(() => {
-        // Show toast notification
+    navigator.clipboard.writeText(textToCopy).then(() => {
         showToast('Prompt copied to clipboard!');
+        
+        // Track in analytics (simulated)
+        trackCopyEvent(promptId);
+        
+        // Optional: Add visual feedback to the button
+        const button = document.querySelector(`[data-prompt-id="${promptId}"]`);
+        const originalText = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-check"></i> Copied!';
+        button.classList.add('copied');
+        
+        // Reset button after 2 seconds
+        setTimeout(() => {
+            button.innerHTML = originalText;
+            button.classList.remove('copied');
+        }, 2000);
+        
     }).catch(err => {
         console.error('Failed to copy: ', err);
         // Fallback method
         const textArea = document.createElement('textarea');
-        textArea.value = promptText;
+        textArea.value = textToCopy;
         document.body.appendChild(textArea);
         textArea.select();
         document.execCommand('copy');
         document.body.removeChild(textArea);
         showToast('Prompt copied to clipboard!');
+        
+        // Track in analytics (simulated)
+        trackCopyEvent(promptId);
     });
 }
 
-function getRandomPrompt() {
-    if (promptConfig.dailyPrompts.length > 1) {
-        // Get a random prompt (excluding today's which is index 0)
-        const randomIndex = Math.floor(Math.random() * (promptConfig.dailyPrompts.length - 1)) + 1;
-        const randomPrompt = promptConfig.dailyPrompts[randomIndex];
-        
-        dailyPromptElement.textContent = randomPrompt.content;
-        promptToolElement.textContent = randomPrompt.tool;
-        promptCategoryElement.textContent = randomPrompt.category;
-        promptTipsElement.textContent = randomPrompt.tips;
-        
-        showToast('Loaded a new prompt variation!');
+function performSearch() {
+    const searchTerm = promptSearchInput.value.trim();
+    currentSearchQuery = searchTerm;
+    
+    if (searchTerm === '') {
+        resetSearch();
+        return;
+    }
+    
+    // Reset category filter
+    document.querySelectorAll('.category-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    document.querySelector('.category-btn:first-child').classList.add('active');
+    currentCategory = 'All';
+    
+    // Search prompts
+    const searchResults = searchPrompts(searchTerm);
+    filteredPrompts = searchResults;
+    
+    // Reset to first page
+    currentPage = 1;
+    hasMorePrompts = true;
+    allPromptsContainer.innerHTML = '';
+    loadPromptsPage(1);
+    updatePromptCount();
+}
+
+function resetSearch() {
+    currentSearchQuery = '';
+    filteredPrompts = [...displayedPrompts];
+    currentPage = 1;
+    hasMorePrompts = true;
+    allPromptsContainer.innerHTML = '';
+    loadPromptsPage(1);
+    updatePromptCount();
+}
+
+function handleScroll() {
+    // Check if we're near the bottom of the page
+    const scrollPosition = window.innerHeight + window.scrollY;
+    const documentHeight = document.documentElement.offsetHeight;
+    const threshold = 100; // Load more when 100px from bottom
+    
+    if (documentHeight - scrollPosition < threshold && !isLoading && hasMorePrompts) {
+        loadPromptsPage(currentPage + 1);
     }
 }
 
-function viewFullPrompt(promptId) {
-    const prompt = promptConfig.dailyPrompts.find(p => p.id === promptId);
-    if (prompt) {
-        // Create modal for viewing full prompt
-        const modal = document.createElement('div');
-        modal.className = 'modal';
-        modal.id = 'view-prompt-modal';
-        modal.innerHTML = `
-            <div class="modal-content">
-                <span class="close-view-modal">&times;</span>
-                <h3><i class="fas fa-eye"></i> ${prompt.title}</h3>
-                <div class="prompt-meta">
-                    <span class="ai-tool"><i class="fas fa-wrench"></i> ${prompt.tool}</span>
-                    <span class="prompt-category"><i class="fas fa-tag"></i> ${prompt.category}</span>
-                    <span class="prompt-date"><i class="fas fa-calendar"></i> ${prompt.date}</span>
-                </div>
-                <div class="prompt-content">
-                    <p>${prompt.content}</p>
-                </div>
-                <div class="usage-tips">
-                    <h4><i class="fas fa-lightbulb"></i> Usage Tips</h4>
-                    <p>${prompt.tips}</p>
-                </div>
-                <button class="btn copy-btn" id="copy-viewed-prompt">
-                    <i class="far fa-copy"></i> Copy This Prompt
-                </button>
+function updatePromptCount() {
+    const totalPrompts = filteredPrompts.length;
+    const loadedPrompts = Math.min(currentPage * promptsPerPage, totalPrompts);
+    
+    if (totalPrompts === 0) {
+        promptCountElement.textContent = 'No prompts found';
+        allPromptsContainer.innerHTML = `
+            <div class="no-results">
+                <i class="fas fa-search"></i>
+                <h3>No prompts found</h3>
+                <p>Try a different search term or browse categories</p>
             </div>
         `;
-        
-        document.body.appendChild(modal);
-        modal.style.display = 'flex';
-        
-        // Add event listeners
-        const closeButton = modal.querySelector('.close-view-modal');
-        closeButton.addEventListener('click', function() {
-            document.body.removeChild(modal);
-        });
-        
-        const copyButton = modal.querySelector('#copy-viewed-prompt');
-        copyButton.addEventListener('click', function() {
-            navigator.clipboard.writeText(prompt.content).then(() => {
-                showToast('Prompt copied to clipboard!');
-            });
-        });
-        
-        // Close when clicking outside
-        modal.addEventListener('click', function(e) {
-            if (e.target === modal) {
-                document.body.removeChild(modal);
-            }
-        });
+    } else if (currentSearchQuery) {
+        promptCountElement.textContent = `Found ${totalPrompts} prompts for "${currentSearchQuery}"`;
+    } else if (currentCategory !== 'All') {
+        promptCountElement.textContent = `${totalPrompts} prompts in ${currentCategory}`;
+    } else {
+        promptCountElement.textContent = `${totalPrompts} prompts available`;
     }
 }
 
@@ -396,7 +418,6 @@ function handlePromptSubmission(e) {
     }
     
     // In a real app, you would send this to a server
-    // For this demo, we'll just show a confirmation
     alert('Thank you for your submission! Your prompt has been received and will be reviewed.');
     
     // Reset form
@@ -419,7 +440,86 @@ function showToast(message) {
     }, 3000);
 }
 
+function trackCopyEvent(promptId) {
+    // Simulate analytics tracking
+    console.log(`Prompt ${promptId} copied to clipboard`);
+}
+
 function truncateText(text, maxLength) {
     if (text.length <= maxLength) return text;
     return text.substring(0, maxLength) + '...';
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function unescapeHtml(text) {
+    const div = document.createElement('div');
+    div.innerHTML = text;
+    return div.textContent || div.innerText || '';
+}
+
+// Helper function to get all prompts
+function getAllPrompts() {
+    const allPrompts = [...promptConfig.allPrompts];
+    
+    // Add additional prompts if they exist
+    if (promptConfig.additionalPrompts) {
+        allPrompts.push(...promptConfig.additionalPrompts);
+    }
+    
+    // Add trending prompts if they exist
+    if (promptConfig.trendingPrompts) {
+        promptConfig.trendingPrompts.forEach((content, index) => {
+            if (typeof content === 'string') {
+                allPrompts.push({
+                    id: `trending-${index + 1000}`,
+                    date: new Date().toISOString().split('T')[0],
+                    title: `Trending Prompt ${index + 1}`,
+                    content: content,
+                    tool: 'ChatGPT',
+                    category: 'Productivity',
+                    tags: ['trending'],
+                    searchKeywords: ['trending']
+                });
+            }
+        });
+    }
+    
+    return allPrompts;
+}
+
+// Search function (moved from config.js)
+function searchPrompts(query) {
+    const allPrompts = getAllPrompts();
+    const searchQuery = query.toLowerCase().trim();
+    
+    if (!searchQuery) return allPrompts;
+    
+    return allPrompts.filter(prompt => {
+        // Search in content
+        if (prompt.content.toLowerCase().includes(searchQuery)) return true;
+        
+        // Search in title
+        if (prompt.title.toLowerCase().includes(searchQuery)) return true;
+        
+        // Search in tool
+        if (prompt.tool.toLowerCase().includes(searchQuery)) return true;
+        
+        // Search in category
+        if (prompt.category.toLowerCase().includes(searchQuery)) return true;
+        
+        // Search in tags
+        if (prompt.tags && prompt.tags.some(tag => 
+            tag.toLowerCase().includes(searchQuery))) return true;
+        
+        // Search in keywords
+        if (prompt.searchKeywords && prompt.searchKeywords.some(keyword => 
+            keyword.toLowerCase().includes(searchQuery))) return true;
+        
+        return false;
+    });
 }
