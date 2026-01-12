@@ -1,5 +1,3 @@
-// config.js - 100 AI Prompts for Image & Video Generation
-
 const promptConfig = {
     allPrompts: [
         // January 2026 Prompts (1-31)
